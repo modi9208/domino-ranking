@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Domino Ranking Cloud v0.3.3</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <style>
+    :root{
+      --bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#6b7280;--accent:#111827;
+      --line:#e5e7eb;--good:#166534;--bad:#991b1b;--warn:#92400e
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .app{max-width:820px;margin:auto;padding:16px 14px 95px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    h1{font-size:24px;margin:0}.sub{font-size:12px;color:var(--muted)}
+    .tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5}
+    .tabs .inner{width:min(820px,100%);display:grid;grid-template-columns:repeat(4,1fr)}
+    .tab{border:0;background:transparent;padding:13px 4px;font-weight:700;color:var(--muted)}
+    .tab.active{color:var(--ink);background:#f9fafb}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin:3px 0 6px}
+    select,input,button{font:inherit}
+    select,input[type="number"],input[type="text"]{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#fff}
+    .btn{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer}
+    .primary{background:var(--accent);color:white}.secondary{background:#eef2f7}.danger{background:#fee2e2;color:#991b1b}
+    .muted{color:var(--muted)}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+    th{font-size:11px;color:var(--muted)}
+    .rank{font-weight:900;width:34px}.rating{font-weight:900}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2f7;font-size:11px;font-weight:800}
+    .sectionTitle{font-size:18px;margin:2px 0 10px}
+    .hidden{display:none!important}
+    .playerCard{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .metric{background:#f9fafb;border-radius:12px;padding:10px;text-align:center}
+    .metric b{display:block;font-size:18px}.metric span{font-size:11px;color:var(--muted)}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .tiny{font-size:11px;color:var(--muted)}
+    .bar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+    .bar>span{display:block;height:100%;background:#111827}
+    .pair{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+    .note{font-size:12px;line-height:1.6;background:#f9fafb;border-radius:12px;padding:10px}
+    @media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  
+.status{padding:9px 11px;border-radius:12px;font-size:12px;margin-bottom:12px}
+.status.ok{background:#dcfce7;color:#166534}
+.status.err{background:#fee2e2;color:#991b1b}
+.status.wait{background:#fef3c7;color:#92400e}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button:disabled{opacity:.45;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Domino Ranking</h1>
+      <div class="sub">v0.3.3 Cloud • Netlify Function</div>
+    </div>
+    <button class="btn secondary" id="installBtn" style="display:none">تثبيت</button>
+  </header>
+
+  <div id="cloudStatus" class="status wait">جاري الاتصال بقاعدة البيانات…</div>
+
+  <section id="screen-match">
+    <div class="card">
+      <h2 class="sectionTitle" id="matchTitle">تسجيل مباراة</h2>
+      <div class="row">
+        <div class="card" style="margin:0;padding:12px">
+          <div style="font-weight:900;margin-bottom:8px">الفريق الأول</div>
+          <div><label>اللاعب 1</label><select id="a1"></select></div>
+          <div style="margin-top:8px"><label>اللاعب 2</label><select id="a2"></select></div>
+        </div>
+        <div class="card" style="margin:0;padding:12px">
+          <div style="font-weight:900;margin-bottom:8px">الفريق الثاني</div>
+          <div><label>اللاعب 1</label><select id="b1"></select></div>
+          <div style="margin-top:8px"><label>اللاعب 2</label><select id="b2"></select></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>نتيجة الفريق الأول</label><input id="scoreA" type="number" min="0" value="151"></div>
+        <div><label>نتيجة الفريق الثاني</label><input id="scoreB" type="number" min="0" value="0"></div>
+      </div>
+      <div class="flex" style="margin-top:12px">
+        <button class="btn primary" style="flex:1" id="saveMatchBtn" onclick="saveMatch()">حفظ المباراة</button>
+        <button class="btn secondary hidden" id="cancelEditBtn" onclick="cancelEdit()">إلغاء التعديل</button>
+      </div>
+      <div id="matchMsg" class="tiny" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="sectionTitle">آخر مباراة</h2>
+      <div id="lastMatch" class="muted">ماكو مباريات بعد.</div>
+    </div>
+
+    <div class="card">
+      <h2 class="sectionTitle">شلون ينحسب التصنيف؟</h2>
+      <div class="note">
+        كل مباراة تعيد تحليل السجل كله. النظام يفصل بين <b>قوة اللاعب</b> و<b>انسجام الشراكة</b>.
+        الفوز هو العامل الرئيسي، وفارق النتيجة يأثر بنسبة صغيرة. قلة تنوع الشركاء تقلل الثقة بالتقييم.
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-ranking" class="hidden">
+    <div class="card">
+      <h2 class="sectionTitle">الترتيب العام</h2>
+      <div class="tiny" style="margin-bottom:8px">من أعلى التقييم الرسمي إلى الأقل. أقل من 10 مباريات يبقى قيد التقييم لكن مكانه يبقى حسب تقييمه.</div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>#</th><th>اللاعب</th><th>التقييم الرسمي</th><th>القوة</th><th>ثقة</th><th>م</th><th>فوز%</th><th>شركاء</th></tr></thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-players" class="hidden">
+    <div class="card">
+      <h2 class="sectionTitle">إدارة اللاعبين</h2>
+      <div class="tiny" style="margin-bottom:8px">إضافة/تعديل/حذف اللاعب يحتاج PIN الإدارة.</div>
+      <div class="row">
+        <input id="newPlayer" type="text" placeholder="اسم اللاعب الجديد">
+        <button class="btn primary" onclick="addPlayer()">إضافة</button>
+      </div>
+    </div>
+    <div id="playersList"></div>
+  </section>
+
+  <section id="screen-history" class="hidden">
+    <div class="card">
+      <h2 class="sectionTitle">سجل المباريات</h2>
+      <div class="tiny" style="margin-bottom:8px">تعديل أو حذف أي مباراة يحتاج PIN الإدارة.</div>
+      <div id="historyList"></div>
+    </div>
+    <div class="card">
+      <h2 class="sectionTitle">نسخة احتياطية</h2>
+      <button class="btn secondary" style="width:100%" onclick="exportData()">تصدير JSON</button>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs">
+  <div class="inner">
+    <button class="tab active" data-screen="match">مباراة</button>
+    <button class="tab" data-screen="ranking">الترتيب</button>
+    <button class="tab" data-screen="players">اللاعبين</button>
+    <button class="tab" data-screen="history">السجل</button>
+  </div>
+</nav>
+
+<script src="config.js"></script>
+<script>
+const CFG = window.DOMINO_CONFIG || {};
+const GROUP_CODE = CFG.groupCode || "DOMINO2026";
+// Browser talks only to same-origin Netlify.
+// Netlify proxies /supabase/* to the actual Supabase project.
+const API_ROOT = location.origin + "/.netlify/functions/supabase-proxy";
+
+let groupId = null;
+let groupName = GROUP_CODE;
+let db = {players:[], matches:[]};
+let model = null;
+let editingMatchId = null;
+let pollTimer = null;
+
+function status(t,type="wait"){
+  const el=document.getElementById("cloudStatus");
+  el.className="status "+type; el.textContent=t;
+}
+function playerName(id){return db.players.find(p=>p.id===id)?.name||"—"}
+function pairKey(a,b){return [a,b].sort().join("|")}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function sigmoid(x){if(x>30)return 1;if(x<-30)return 0;return 1/(1+Math.exp(-x))}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function promptPin(){return prompt("أدخل PIN الإدارة")||""}
+
+function apiUrl(path, params={}){
+  const u = new URL(API_ROOT);
+  u.searchParams.set("path", path);
+  for(const [k,v] of Object.entries(params)){
+    if(v!==undefined && v!==null) u.searchParams.set(k,String(v));
+  }
+  return u.toString();
+}
+
+async function api(path, opts={}, params={}){
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), 12000);
+  try{
+    const headers = Object.assign({}, opts.headers||{});
+    if(opts.body && !headers["Content-Type"]) headers["Content-Type"]="application/json";
+    const r = await fetch(apiUrl(path, params), {
+      method: opts.method || "GET",
+      headers,
+      body: opts.body,
+      signal: controller.signal,
+      cache:"no-store"
+    });
+    const txt = await r.text();
+    let data = null;
+    if(txt){
+      try{ data=JSON.parse(txt) }catch{ data=txt }
+    }
+    if(!r.ok){
+      const msg = (data && (data.message||data.error||data.hint)) || txt || ("HTTP "+r.status);
+      throw new Error(msg);
+    }
+    return data;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+async function initCloud(){
+  try{
+    status("جاري الاتصال عبر Netlify…","wait");
+    const groups = await api("/groups", {}, {select:"id,name,code", code:"eq."+GROUP_CODE});
+    if(!Array.isArray(groups) || !groups.length) throw new Error("مجموعة DOMINO2026 غير موجودة");
+    const g=groups[0];
+    groupId=g.id; groupName=g.name||g.code;
+    await loadCloud();
+    status("متصل • "+groupName, "ok");
+    startPolling();
+  }catch(e){
+    console.error(e);
+    status("فشل الاتصال: "+friendlyError(e), "err");
+  }
+}
+
+async function loadCloud(silent=false){
+  if(!groupId)return;
+  try{
+    const [players,matches] = await Promise.all([
+      api("/players", {}, {select:"id,name,active,created_at",group_id:"eq."+groupId,active:"eq.true",order:"name.asc"}),
+      api("/matches", {}, {select:"*",group_id:"eq."+groupId,order:"played_at.asc"})
+    ]);
+    db.players=players||[];
+    db.matches=(matches||[]).map(m=>({
+      id:m.id,date:m.played_at,a1:m.a1,a2:m.a2,b1:m.b1,b2:m.b2,
+      scoreA:m.score_a,scoreB:m.score_b,winner:m.score_a>m.score_b?"A":"B"
+    }));
+    rebuildModel(); renderAll();
+    if(!silent) status("متصل • "+groupName, "ok");
+  }catch(e){
+    if(!silent) status("فشل التحديث: "+friendlyError(e), "err");
+    throw e;
+  }
+}
+
+function startPolling(){
+  clearInterval(pollTimer);
+  pollTimer=setInterval(()=>loadCloud(true).catch(()=>{}),3000);
+}
+
+/* Rating model: regularized logistic team model + pair synergy. */
+function rebuildModel(){
+  const ids=db.players.map(p=>p.id);
+  const skills=Object.fromEntries(ids.map(id=>[id,0]));
+  const pairSet=new Set();
+  db.matches.forEach(m=>{pairSet.add(pairKey(m.a1,m.a2));pairSet.add(pairKey(m.b1,m.b2))});
+  const pairs=Object.fromEntries([...pairSet].map(k=>[k,0]));
+  const skillL2=1.8,pairL2=8.0;
+  let lr=.035;
+
+  for(let iter=0;iter<700;iter++){
+    const gs=Object.fromEntries(ids.map(id=>[id,-skillL2*skills[id]]));
+    const gp=Object.fromEntries(Object.keys(pairs).map(k=>[k,-pairL2*pairs[k]]));
+    for(const m of db.matches){
+      if(!skills.hasOwnProperty(m.a1)||!skills.hasOwnProperty(m.a2)||!skills.hasOwnProperty(m.b1)||!skills.hasOwnProperty(m.b2))continue;
+      const ka=pairKey(m.a1,m.a2),kb=pairKey(m.b1,m.b2);
+      const z=skills[m.a1]+skills[m.a2]-skills[m.b1]-skills[m.b2]+(pairs[ka]||0)-(pairs[kb]||0);
+      const p=sigmoid(z),y=m.scoreA>m.scoreB?1:0;
+      const w=1+.15*Math.min(Math.abs(m.scoreA-m.scoreB)/151,1);
+      const e=w*(y-p);
+      gs[m.a1]+=e;gs[m.a2]+=e;gs[m.b1]-=e;gs[m.b2]-=e;
+      gp[ka]=(gp[ka]||0)+e;gp[kb]=(gp[kb]||0)-e;
+    }
+    const scale=Math.max(1,db.matches.length/12);
+    Object.keys(skills).forEach(id=>skills[id]+=lr*gs[id]/scale);
+    Object.keys(pairs).forEach(k=>pairs[k]+=lr*gp[k]/scale);
+    const mean=ids.length?ids.reduce((a,id)=>a+skills[id],0)/ids.length:0;
+    ids.forEach(id=>skills[id]-=mean);
+    if(iter===250)lr*=.55;if(iter===500)lr*=.55;
+  }
+
+  const gameCounts=Object.fromEntries(ids.map(id=>[id,0]));
+  const wins=Object.fromEntries(ids.map(id=>[id,0]));
+  const partnerSets=Object.fromEntries(ids.map(id=>[id,new Set()]));
+  const info=Object.fromEntries(ids.map(id=>[id,skillL2]));
+  const pairGames={};
+
+  for(const m of db.matches){
+    if(!skills.hasOwnProperty(m.a1)||!skills.hasOwnProperty(m.a2)||!skills.hasOwnProperty(m.b1)||!skills.hasOwnProperty(m.b2))continue;
+    const ka=pairKey(m.a1,m.a2),kb=pairKey(m.b1,m.b2);
+    const z=skills[m.a1]+skills[m.a2]-skills[m.b1]-skills[m.b2]+(pairs[ka]||0)-(pairs[kb]||0);
+    const p=sigmoid(z),y=m.scoreA>m.scoreB?1:0;
+    const w=1+.15*Math.min(Math.abs(m.scoreA-m.scoreB)/151,1);
+    const fisher=w*p*(1-p);
+    [m.a1,m.a2,m.b1,m.b2].forEach(id=>{gameCounts[id]++;info[id]+=fisher});
+    if(y){wins[m.a1]++;wins[m.a2]++}else{wins[m.b1]++;wins[m.b2]++}
+    partnerSets[m.a1].add(m.a2);partnerSets[m.a2].add(m.a1);
+    partnerSets[m.b1].add(m.b2);partnerSets[m.b2].add(m.b1);
+    pairGames[ka]=(pairGames[ka]||0)+1;pairGames[kb]=(pairGames[kb]||0)+1;
+  }
+
+  const stats={};
+  ids.forEach(id=>{
+    const baseSE=1/Math.sqrt(Math.max(info[id],.001));
+    const diversity=partnerSets[id].size;
+    const diversityPenalty=gameCounts[id]===0?1.8:1+Math.max(0,3-diversity)*.18;
+    const se=baseSE*diversityPenalty;
+    const skillRating=1500+skills[id]*180;
+    const uncertainty=se*180;
+    const official=skillRating-.70*uncertainty;
+    const confidence=clamp(Math.round(100*(1-Math.min(1,uncertainty/260))),0,100);
+    stats[id]={latent:skills[id],skillRating,uncertainty,official,confidence,
+      games:gameCounts[id],wins:wins[id],losses:gameCounts[id]-wins[id],
+      winRate:gameCounts[id]?100*wins[id]/gameCounts[id]:0,partners:diversity};
+  });
+  model={skills,pairs,stats,pairGames};
+}
+
+async function saveMatch(){
+  if(!groupId){msg("ماكو اتصال بقاعدة البيانات.");return}
+  const ids=["a1","a2","b1","b2"].map(x=>document.getElementById(x).value);
+  if(ids.some(x=>!x)||new Set(ids).size!==4){msg("اختار 4 لاعبين مختلفين.");return}
+  const scoreA=Number(document.getElementById("scoreA").value),scoreB=Number(document.getElementById("scoreB").value);
+  if(scoreA===scoreB||Math.max(scoreA,scoreB)<151){msg("لازم أكو فائز واصل 151 أو أكثر.");return}
+  const btn=document.getElementById("saveMatchBtn");btn.disabled=true;
+  try{
+    if(editingMatchId){
+      const pin=promptPin();if(!pin)return;
+      await api("/rpc/admin_update_match",{
+        method:"POST",
+        body:JSON.stringify({
+          p_group_code:GROUP_CODE,p_match_id:editingMatchId,p_pin:pin,
+          p_a1:ids[0],p_a2:ids[1],p_b1:ids[2],p_b2:ids[3],p_score_a:scoreA,p_score_b:scoreB
+        })
+      });
+      msg("تم تعديل المباراة.");cancelEdit(false);
+    }else{
+      await api("/matches",{
+        method:"POST",
+        headers:{"Prefer":"return=minimal"},
+        body:JSON.stringify({
+          group_id:groupId,a1:ids[0],a2:ids[1],b1:ids[2],b2:ids[3],score_a:scoreA,score_b:scoreB
+        })
+      });
+      msg("تم حفظ المباراة.");
+    }
+    await loadCloud();
+  }catch(e){
+    console.error(e);msg("خطأ: "+friendlyError(e));
+  }finally{btn.disabled=false}
+}
+function msg(t){document.getElementById("matchMsg").textContent=t}
+function friendlyError(e){
+  const s=(e?.message||String(e));
+  if(e?.name==="AbortError")return "انتهت مهلة الاتصال";
+  if(s.includes("wrong admin pin"))return "PIN الإدارة غير صحيح";
+  if(s.includes("player already exists"))return "اسم اللاعب موجود مسبقاً";
+  if(s.includes("player has matches"))return "ما نكدر نحذف لاعب عنده مباريات";
+  if(s.includes("Failed to fetch")||s.includes("Load failed"))return "تعذر الوصول إلى قاعدة البيانات عبر Netlify Function";
+  return s;
+}
+
+async function rpc(name,payload){
+  return api("/rpc/"+name,{method:"POST",body:JSON.stringify(payload)});
+}
+async function addPlayer(){
+  if(!groupId)return;
+  const el=document.getElementById("newPlayer"),name=el.value.trim();if(!name)return;
+  const pin=promptPin();if(!pin)return;
+  try{await rpc("admin_add_player",{p_group_code:GROUP_CODE,p_name:name,p_pin:pin});el.value="";await loadCloud()}
+  catch(e){alert(friendlyError(e))}
+}
+async function renamePlayer(id){
+  const p=db.players.find(x=>x.id===id);const n=prompt("الاسم الجديد",p.name);if(!n||!n.trim())return;
+  const pin=promptPin();if(!pin)return;
+  try{await rpc("admin_rename_player",{p_group_code:GROUP_CODE,p_player_id:id,p_name:n.trim(),p_pin:pin});await loadCloud()}
+  catch(e){alert(friendlyError(e))}
+}
+async function removePlayer(id){
+  if(!confirm("متأكد تريد تحذف اللاعب؟"))return;
+  const pin=promptPin();if(!pin)return;
+  try{await rpc("admin_delete_player",{p_group_code:GROUP_CODE,p_player_id:id,p_pin:pin});await loadCloud()}
+  catch(e){alert(friendlyError(e))}
+}
+async function deleteMatch(id){
+  if(!confirm("متأكد تريد تحذف هاي المباراة؟"))return;
+  const pin=promptPin();if(!pin)return;
+  try{await rpc("admin_delete_match",{p_group_code:GROUP_CODE,p_match_id:id,p_pin:pin});await loadCloud()}
+  catch(e){alert(friendlyError(e))}
+}
+
+function startEditMatch(id){
+  const m=db.matches.find(x=>x.id===id);if(!m)return;
+  editingMatchId=id;
+  document.getElementById("a1").value=m.a1;document.getElementById("a2").value=m.a2;
+  document.getElementById("b1").value=m.b1;document.getElementById("b2").value=m.b2;
+  document.getElementById("scoreA").value=m.scoreA;document.getElementById("scoreB").value=m.scoreB;
+  document.getElementById("matchTitle").textContent="تعديل مباراة";
+  document.getElementById("saveMatchBtn").textContent="حفظ التعديل";
+  document.getElementById("cancelEditBtn").classList.remove("hidden");
+  openScreen("match");window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEdit(clear=true){
+  editingMatchId=null;
+  document.getElementById("matchTitle").textContent="تسجيل مباراة";
+  document.getElementById("saveMatchBtn").textContent="حفظ المباراة";
+  document.getElementById("cancelEditBtn").classList.add("hidden");
+  if(clear)msg("");
+}
+
+function pairRows(id){
+  const rows=[];
+  for(const p of db.players){
+    if(p.id===id)continue;
+    const k=pairKey(id,p.id),games=model?.pairGames[k]||0;if(!games)continue;
+    rows.push({name:p.name,games,synergy:(model.pairs[k]||0)*180});
+  }
+  return rows.sort((a,b)=>b.synergy-a.synergy);
+}
+function renderSelects(){
+  ["a1","a2","b1","b2"].forEach(sid=>{
+    const s=document.getElementById(sid),cur=s.value;
+    s.innerHTML='<option value="">اختار لاعب</option>'+db.players.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    if(cur&&db.players.some(p=>p.id===cur))s.value=cur;
+  });
+}
+function renderRanking(){
+  if(!model){document.getElementById("rankingBody").innerHTML="";return}
+  const arr=db.players.map(p=>({p,st:model.stats[p.id]})).sort((x,y)=>y.st.official-x.st.official);
+  document.getElementById("rankingBody").innerHTML=arr.map((x,i)=>`
+    <tr><td class="rank">${i+1}</td>
+    <td><b>${escapeHtml(x.p.name)}</b>${x.st.games<10?'<br><span class="pill">قيد التقييم</span>':""}</td>
+    <td class="rating">${Math.round(x.st.official)}</td><td>${Math.round(x.st.skillRating)}</td>
+    <td>${x.st.confidence}%</td><td>${x.st.games}</td><td>${x.st.winRate.toFixed(0)}%</td><td>${x.st.partners}</td></tr>`).join("");
+}
+function renderPlayers(){
+  if(!model){document.getElementById("playersList").innerHTML="";return}
+  document.getElementById("playersList").innerHTML=db.players.map(p=>{
+    const st=model.stats[p.id],prs=pairRows(p.id);
+    return `<div class="card">
+      <div class="playerCard"><div><b>${escapeHtml(p.name)}</b><div class="tiny">${st.games<10?"قيد التقييم • ":""}عدم اليقين ±${Math.round(st.uncertainty)} نقطة</div></div>
+      <div><button class="btn secondary" onclick="renamePlayer('${p.id}')">تعديل</button> <button class="btn danger" onclick="removePlayer('${p.id}')">حذف</button></div></div>
+      <div class="metrics" style="margin-top:10px">
+        <div class="metric"><b>${Math.round(st.skillRating)}</b><span>القوة</span></div>
+        <div class="metric"><b>${Math.round(st.official)}</b><span>التقييم الرسمي</span></div>
+        <div class="metric"><b>${st.confidence}%</b><span>ثقة</span></div>
+        <div class="metric"><b>${st.winRate.toFixed(0)}%</b><span>فوز</span></div>
+      </div>
+      <div style="margin-top:10px"><div class="tiny">الثقة بالتقييم</div><div class="bar"><span style="width:${st.confidence}%"></span></div></div>
+      <div class="tiny" style="margin-top:10px">مباريات ${st.games} • شركاء مختلفين ${st.partners} • فوز ${st.wins} • خسارة ${st.losses}</div>
+      ${prs.length?`<div style="margin-top:12px"><b style="font-size:13px">الشراكات</b>${prs.slice(0,8).map(r=>`<div class="pair"><span>${escapeHtml(r.name)} <span class="tiny">(${r.games} مباراة)</span></span><b class="${r.synergy>=0?"good":"bad"}">${r.synergy>=0?"+":""}${Math.round(r.synergy)} انسجام</b></div>`).join("")}</div>`:'<div class="tiny" style="margin-top:10px">ماكو بيانات شراكات بعد.</div>'}
+    </div>`;
+  }).join("");
+}
+function renderHistory(){
+  const list=[...db.matches].reverse();
+  document.getElementById("historyList").innerHTML=list.length?list.map(m=>{
+    const a=`${playerName(m.a1)} + ${playerName(m.a2)}`,b=`${playerName(m.b1)} + ${playerName(m.b2)}`;
+    const d=new Date(m.date).toLocaleDateString("ar-IQ");
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div class="tiny">${d}</div>
+      <b>${escapeHtml(a)}</b> <span class="${m.winner==="A"?"good":""}">${m.scoreA}</span> —
+      <span class="${m.winner==="B"?"good":""}">${m.scoreB}</span> <b>${escapeHtml(b)}</b>
+      <div class="flex" style="margin-top:6px"><button class="btn secondary" onclick="startEditMatch('${m.id}')">تعديل</button>
+      <button class="btn danger" onclick="deleteMatch('${m.id}')">حذف</button></div>
+    </div>`;
+  }).join(""):'<div class="muted">ماكو مباريات بعد.</div>';
+}
+function renderLast(){
+  const m=db.matches.at(-1),el=document.getElementById("lastMatch");
+  if(!m){el.textContent="ماكو مباريات بعد.";return}
+  el.innerHTML=`<b>${escapeHtml(playerName(m.a1))} + ${escapeHtml(playerName(m.a2))}</b> ${m.scoreA} — ${m.scoreB} <b>${escapeHtml(playerName(m.b1))} + ${escapeHtml(playerName(m.b2))}</b>`;
+}
+function renderAll(){rebuildModel();renderSelects();renderRanking();renderPlayers();renderHistory();renderLast()}
+function exportData(){
+  const blob=new Blob([JSON.stringify({groupCode:GROUP_CODE,groupName,exportedAt:new Date().toISOString(),...db},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="domino-ranking-cloud-backup.json";a.click();URL.revokeObjectURL(a.href);
+}
+function openScreen(s){
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.screen===s));
+  ["match","ranking","players","history"].forEach(x=>document.getElementById("screen-"+x).classList.toggle("hidden",x!==s));
+}
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>openScreen(btn.dataset.screen)));
+
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;document.getElementById("installBtn").style.display="block"});
+document.getElementById("installBtn").addEventListener("click",async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null});
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(console.error);
+}
+renderAll();
+initCloud();
+</script>
+</body>
+</html>
